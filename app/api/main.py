@@ -1,9 +1,16 @@
 from pathlib import Path
 from uuid import uuid4
 
-from fastapi import FastAPI, File, HTTPException, UploadFile
+from fastapi import Depends, FastAPI, File, HTTPException, UploadFile
+from sqlalchemy.orm import Session
 
 from app.main import analyze_image
+
+from app.auth.dependencies import get_current_user, get_db
+from app.auth.routes import router as auth_router
+
+from app.database.user import User
+from app.database.analysis import Analysis
 
 
 # ============================================================
@@ -15,6 +22,13 @@ app = FastAPI(
     description="AI-powered UI/UX screenshot analysis API",
     version="1.0.0",
 )
+
+
+# ============================================================
+# Authentication Routes
+# ============================================================
+
+app.include_router(auth_router)
 
 
 # ============================================================
@@ -60,6 +74,8 @@ def health():
 @app.post("/analyze")
 async def analyze(
     file: UploadFile = File(...),
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
 ):
 
     # --------------------------------------------------------
@@ -146,13 +162,36 @@ async def analyze(
             image_path=str(image_path),
         )
 
+        # ----------------------------------------------------
+        # Save Analysis in Database
+        # ----------------------------------------------------
+
+        analysis = Analysis(
+            user_id=current_user.id,
+            image_path=str(image_path),
+            result=result,
+        )
+
+        db.add(analysis)
+
+        db.commit()
+
+        db.refresh(analysis)
+
+        # ----------------------------------------------------
+        # Return Result
+        # ----------------------------------------------------
+
         return {
             "success": True,
+            "analysis_id": analysis.id,
             "filename": filename,
             "result": result,
         }
 
     except Exception as e:
+
+        db.rollback()
 
         raise HTTPException(
             status_code=500,
