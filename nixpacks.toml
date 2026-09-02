@@ -1,0 +1,8 @@
+[phases.setup]
+aptPkgs = [
+    "libgl1",
+    "libglib2.0-0"
+]
+
+[start]
+cmd = "uvicorn app.api.main:app --host 0.0.0.0 --port $PORT"
