@@ -1,8 +1,53 @@
+from pathlib import Path
+from urllib.request import urlretrieve
+
 from ultralytics import YOLO
+
+
+MODEL_URL = (
+    "https://huggingface.co/docling-project/ScreenParser/"
+    "resolve/main/best.pt?download=true"
+)
+
+DEFAULT_MODEL_PATH = (
+    Path(__file__).resolve().parent / "best.pt"
+)
+
+
 class ScreenParser:
 
-    def __init__(self, model_path: str):
-        self.model = YOLO(model_path)
+    def __init__(
+        self,
+        model_path: str | None = None
+    ):
+
+        if model_path is None:
+            model_path = str(DEFAULT_MODEL_PATH)
+
+        model_path = Path(model_path)
+
+        if not model_path.exists():
+
+            print("ScreenParser model not found.")
+            print("Downloading best.pt from Hugging Face...")
+
+            model_path.parent.mkdir(
+                parents=True,
+                exist_ok=True
+            )
+
+            urlretrieve(
+                MODEL_URL,
+                model_path
+            )
+
+            print(
+                f"Model downloaded to: {model_path}"
+            )
+
+        self.model = YOLO(
+            str(model_path)
+        )
 
     def parse(
         self,
@@ -59,7 +104,9 @@ class ScreenParser:
 
         self.print_detections(detections)
 
-        detections = self.remove_duplicates(detections)
+        detections = self.remove_duplicates(
+            detections
+        )
 
         print("\nDetected elements AFTER post-processing:")
         print("-" * 100)
